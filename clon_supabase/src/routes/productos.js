@@ -13,6 +13,16 @@ const productosRoutes = (db, handleError) => {
         }
     });
 
+// Nuevo GET para obtener solo las hamburguesas por sus IDs específicos
+router.get('/hamburguesas', async (req, res) => {
+    try {
+        const result = await db.any('SELECT * FROM productos WHERE id_producto IN (11, 12, 13)');
+        res.status(200).json(result);
+    } catch (error) {
+        handleError(res, error, 'Error al obtener hamburguesas');
+    }
+});
+
     // GET producto por ID
     router.get('/:id', async (req, res) => {
         const { id } = req.params;
