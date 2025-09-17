@@ -23,6 +23,27 @@ router.get('/hamburguesas', async (req, res) => {
     }
 });
 
+// Nuevo GET para obtener solo las papas fritas
+router.get('/papas', async (req, res) => {
+    try {
+        const result = await db.any('SELECT * FROM productos WHERE id_producto IN (14, 15)');
+        res.status(200).json(result);
+    } catch (error) {
+        handleError(res, error, 'Error al obtener papas fritas');
+    }
+});
+
+// Nuevo GET para obtener solo las bebidas
+router.get('/bebidas', async (req, res) => {
+    try {
+        const result = await db.any('SELECT * FROM productos WHERE id_producto IN (16, 17, 18, 19, 20)');
+        res.status(200).json(result);
+    } catch (error) {
+        handleError(res, error, 'Error al obtener bebidas');
+    }
+});
+
+
     // GET producto por ID
     router.get('/:id', async (req, res) => {
         const { id } = req.params;
