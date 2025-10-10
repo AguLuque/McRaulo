@@ -12,10 +12,70 @@ const Menu = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Importar todas las imágenes de forma dinámica
+  const imagenesHamburguesas = import.meta.glob('../assets/imagenes/hamburguesas/*.webp', { eager: true });
+  const imagenesBebidas = import.meta.glob('../assets/imagenes/bebidas/*.webp', { eager: true });
+  const imagenesPapas = import.meta.glob('../assets/imagenes/papas/*.webp', { eager: true });
+
+  // Mapeo de nombres de productos a nombres de archivos
+  const mapeoImagenes = {
+    // Hamburguesas
+    'McRaulo Cheese': 'cheddar',
+    'McRaulo Veggie': 'vegana',
+    'McRaulo Pollo': 'pollo',
+    
+    // Papas
+    'Papas fritas': 'fritas',
+    'Papas con cheddar': 'fritascheddar',
+    
+    // Bebidas
+    'Sprite': 'sprite',
+    'Fanta': 'fanta',
+    'Limonada': 'limonada',
+    'Agua mineral': 'agua',
+    'Coca-Cola': 'coca'
+  };
+
+  // Función helper para obtener la imagen según el nombre del producto
+  const obtenerImagen = (tipo, nombreProducto) => {
+    let imagenes;
+    let carpeta;
+    
+    switch(tipo) {
+      case 'hamburguesa':
+        imagenes = imagenesHamburguesas;
+        carpeta = 'hamburguesas';
+        break;
+      case 'bebida':
+        imagenes = imagenesBebidas;
+        carpeta = 'bebidas';
+        break;
+      case 'papa':
+        imagenes = imagenesPapas;
+        carpeta = 'papas';
+        break;
+      default:
+        return null;
+    }
+
+    // Obtener el nombre del archivo desde el mapeo
+    const nombreArchivo = mapeoImagenes[nombreProducto];
+    
+    if (!nombreArchivo) {
+      console.warn(`No se encontró imagen para: ${nombreProducto}`);
+      return null;
+    }
+
+    // Buscar la imagen con el nombre del archivo
+    const rutaCompleta = `../assets/imagenes/${carpeta}/${nombreArchivo}.webp`;
+    const imagenKey = Object.keys(imagenes).find(key => key === rutaCompleta);
+
+    return imagenKey ? imagenes[imagenKey].default : null;
+  };
+
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        // Fetch paralelo de todos los productos
         const [hamburguesasRes, papasRes, bebidasRes] = await Promise.all([
           axios.get("http://localhost:3000/api/productos/hamburguesas"),
           axios.get("http://localhost:3000/api/productos/papas"),
@@ -35,55 +95,41 @@ const Menu = () => {
 
     fetchProductos();
 
-    // Cargar carrito desde localStorage al inicializar
     const carritoGuardado = localStorage.getItem('carrito');
     if (carritoGuardado) {
       setCarrito(JSON.parse(carritoGuardado));
     }
   }, []);
 
-  // Función genérica para agregar productos al carrito
   const agregarAlCarrito = (producto, tipo) => {
-    // Definir imágenes según el tipo de producto
-    const imagenes = {
-      hamburguesa: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=1772&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      papa: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      bebida: "https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-    };
-
     const productoCarrito = {
       id: producto.id_producto,
       nombre: producto.nombre,
       descripcion: producto.descripcion,
       precio: producto.precio_base,
-      imagen: imagenes[tipo],
+      imagen: obtenerImagen(tipo, producto.nombre),
       cantidad: 1,
       tipo: tipo
     };
 
     setCarrito(prevCarrito => {
-      // Verificar si el producto ya está en el carrito
       const productoExistente = prevCarrito.find(item => item.id === producto.id_producto);
       
       let nuevoCarrito;
       if (productoExistente) {
-        // Si existe, aumentar la cantidad
         nuevoCarrito = prevCarrito.map(item =>
           item.id === producto.id_producto
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
         );
       } else {
-        // Si no existe, agregarlo al carrito
         nuevoCarrito = [...prevCarrito, productoCarrito];
       }
       
-      // Guardar en localStorage
       localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
       return nuevoCarrito;
     });
 
-    // Mostrar toast de confirmación
     const toast = document.createElement('div');
     toast.className = 'toast toast-top toast-center';
     toast.innerHTML = `
@@ -104,50 +150,51 @@ const Menu = () => {
   const isActive = (path) => location.pathname === path;
   const cartCount = carrito.reduce((total, item) => total + item.cantidad, 0);
 
-  // Componente reutilizable para los carousels
   const CarouselProductos = ({ productos, tipo, titulo, emoji }) => (
     <section className="w-full max-w-6xl mb-12">
       <h2 className="text-3xl font-bold text-center mb-6">
         {emoji} {titulo}
       </h2>
       <div className="carousel carousel-center rounded-box max-w-full space-x-4 p-4 w-full">
-        {productos.map((producto) => (
-          <div key={producto.id_producto} className="carousel-item">
-            <div 
-              className="card bg-base-100 shadow-xl w-80 flex-shrink-0 cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105"
-              onClick={() => agregarAlCarrito(producto, tipo)}
-            >
-              <figure className="h-48 w-full overflow-hidden">
-                <img
-                  src={
-                    tipo === 'hamburguesa' 
-                      ? "https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=1772&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                      : tipo === 'papa'
-                      ? "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                      : "https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                  }
-                  alt={producto.nombre}
-                  className="w-full h-full object-cover"
-                />
-              </figure>
-              <div className="card-body">
-                <h3 className="card-title text-center">{producto.nombre}</h3>
-                <p className="text-sm text-center">{producto.descripcion}</p>
-                <p className="text-xl font-semibold mt-2 text-center">Precio: ${producto.precio_base}</p>
-                
-                {/* Indicador visual de que es clickeable */}
-                <div className="card-actions justify-center mt-4">
-                  <div className="btn btn-primary btn-sm">
-                    + Agregar al carrito
+        {productos.map((producto) => {
+          const imagenProducto = obtenerImagen(tipo, producto.nombre);
+          
+          return (
+            <div key={producto.id_producto} className="carousel-item">
+              <div 
+                className="card bg-base-100 shadow-xl w-80 flex-shrink-0 cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                onClick={() => agregarAlCarrito(producto, tipo)}
+              >
+                <figure className="h-48 w-full overflow-hidden bg-base-200">
+                  {imagenProducto ? (
+                    <img
+                      src={imagenProducto}
+                      alt={producto.nombre}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <span className="text-4xl">{emoji}</span>
+                    </div>
+                  )}
+                </figure>
+                <div className="card-body">
+                  <h3 className="card-title text-center">{producto.nombre}</h3>
+                  <p className="text-sm text-center">{producto.descripcion}</p>
+                  <p className="text-xl font-semibold mt-2 text-center">Precio: ${producto.precio_base}</p>
+                  
+                  <div className="card-actions justify-center mt-4">
+                    <div className="btn btn-primary btn-sm">
+                      + Agregar al carrito
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       
-      {/* Indicador de scroll para cada sección */}
       <div className="text-center mt-4">
         <p className="text-sm text-base-content/60">
           Desliza horizontalmente para ver más {titulo.toLowerCase()} →
@@ -174,7 +221,6 @@ const Menu = () => {
       <div className="flex justify-between items-center w-full max-w-6xl mb-8">
         <h1 className="text-4xl text-center font-bold flex-1">🍔 Menú Completo</h1>
         
-        {/* Botón del carrito */}
         <div className="flex items-center">
           <button 
             onClick={irAlCarrito}
@@ -195,7 +241,6 @@ const Menu = () => {
         productos={hamburguesas}
         tipo="hamburguesa"
         titulo="Hamburguesas"
-        emoji="🍔"
       />
 
       {/* Carousel de Papas Fritas */}
@@ -203,7 +248,6 @@ const Menu = () => {
         productos={papas}
         tipo="papa"
         titulo="Papas Fritas"
-        emoji="🍟"
       />
 
       {/* Carousel de Bebidas */}
@@ -211,7 +255,6 @@ const Menu = () => {
         productos={bebidas}
         tipo="bebida"
         titulo="Bebidas"
-        emoji="🥤"
       />
 
       {/* Instrucciones generales */}
@@ -245,17 +288,15 @@ const Menu = () => {
 
       {/* Barra de navegación dock inferior */}
       <div className="dock">
-        {/* Inicio */}
         <button
           onClick={() => navigate("/")}
           className={isActive("/") ? "dock-active" : ""}
           title="Inicio"
         >
-          <div className="text-2xl">🏠</div>
+          <div className="text-2xl"></div>
           <div className="dock-label">Inicio</div>
         </button>
 
-        {/* Menú */}
         <button
           onClick={() => navigate("/menu")}
           className={isActive("/menu") ? "dock-active" : ""}
@@ -265,7 +306,6 @@ const Menu = () => {
           <div className="dock-label">Menú</div>
         </button>
 
-        {/* Carrito */}
         <button
           onClick={() => navigate("/carrito")}
           className={`relative ${isActive("/carrito") ? "dock-active" : ""}`}
@@ -280,7 +320,6 @@ const Menu = () => {
           )}
         </button>
 
-        {/* Pago */}
         <button
           onClick={() => navigate("/pago")}
           className={`${isActive("/pago") ? "dock-active" : ""} ${cartCount === 0 ? "opacity-50" : ""}`}
@@ -292,7 +331,6 @@ const Menu = () => {
         </button>
       </div>
 
-      {/* Estilos CSS para el dock */}
       <style jsx>{`
         .dock {
           @apply fixed right-0 bottom-0 left-0 z-40 flex w-full flex-row items-center justify-around p-3 text-white;
