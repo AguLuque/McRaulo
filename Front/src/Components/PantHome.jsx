@@ -1,20 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from "./Idioma/Language"; 
 
 const PantHome = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [language, setLanguage] = useState("es");
+  const { language, changeLanguage, texts } = useLanguage();
   const [carrito, setCarrito] = useState([]);
+  const [tipoConsumo, setTipoConsumo] = useState("");
 
-  // Cargar carrito para mostrar contador
+
   useEffect(() => {
     const carritoGuardado = localStorage.getItem('carrito');
     if (carritoGuardado) {
       setCarrito(JSON.parse(carritoGuardado));
     }
 
-    // Actualizar carrito en tiempo real
+    const tipoGuardado = localStorage.getItem('tipoConsumo');
+    if (tipoGuardado) {
+      setTipoConsumo(tipoGuardado);
+    }
+
     const handleStorageChange = () => {
       const carritoActualizado = localStorage.getItem('carrito');
       if (carritoActualizado) {
@@ -28,30 +34,9 @@ const PantHome = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Diccionario básico de idiomas
-  const texts = {
-    es: {
-      start: "Iniciar Pedido",
-      language: "Idioma",
-      takeaway: "Para Llevar",
-      dinein: "Consumir en el Local",
-      welcome: "Bienvenido",
-      home: "Inicio",
-      menu: "Menú",
-      cart: "Carrito",
-      payment: "Pago"
-    },
-    en: {
-      start: "Start Order",
-      language: "Language",
-      takeaway: "Takeaway",
-      dinein: "Dine In",
-      welcome: "Welcome",
-      home: "Home",
-      menu: "Menu",
-      cart: "Cart",
-      payment: "Payment"
-    },
+  const seleccionarTipoConsumo = (tipo) => {
+    setTipoConsumo(tipo);
+    localStorage.setItem('tipoConsumo', tipo);
   };
 
   const isActive = (path) => location.pathname === path;
@@ -59,11 +44,11 @@ const PantHome = () => {
 
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center justify-center p-6 pb-20">
-      {/* Contenedor principal para posicionamiento */}
+      {/* Selector de idioma */}
       <div className="fixed top-6 right-6 z-10">
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          onChange={(e) => changeLanguage(e.target.value)} // 👈 Usar changeLanguage del contexto
           className="select select-bordered select-sm md:select-md shadow-md"
         >
           <option value="es">🇪🇸 Español</option>
@@ -71,61 +56,89 @@ const PantHome = () => {
         </select>
       </div>
 
-      {/* Tarjeta de bienvenida centrada */}
       <div className="card w-full max-w-sm md:max-w-md bg-base-200 shadow-2xl rounded-2xl p-6 md:p-8 text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-primary-content mb-8">
-          {texts[language].welcome}
+        <div className="text-6xl mb-4">🍔</div>
+        
+        <h1 className="text-3xl md:text-4xl font-extrabold text-primary mb-2">
+          {texts.welcome} {/* 👈 Usar texts del contexto */}
         </h1>
 
-        {/* Botón principal grande y destacado */}
-        <button
-          onClick={() => navigate("/menu")}
-          className="btn btn-warning btn-lg w-full mb-6 text-xl md:text-2xl"
-        >
-          {texts[language].start}
-        </button>
+        <p className="text-base-content/70 mb-6">
+          {texts.selectOption}
+        </p>
 
-        {/* Botones secundarios */}
-        <div className="flex flex-col md:flex-row gap-4 w-full justify-center">
-          <button className="btn btn-outline btn-success flex-1">
-            {texts[language].takeaway}
+        <div className="flex flex-col md:flex-row gap-4 w-full justify-center mb-6">
+          <button 
+            onClick={() => seleccionarTipoConsumo("llevar")}
+            className={`btn flex-1 ${
+              tipoConsumo === "llevar" 
+                ? "btn-success" 
+                : "btn-outline btn-success"
+            }`}
+          >
+            {tipoConsumo === "llevar" && "✓ "}
+             {texts.takeaway}
           </button>
-          <button className="btn btn-outline btn-info flex-1">
-            {texts[language].dinein}
+          <button 
+            onClick={() => seleccionarTipoConsumo("local")}
+            className={`btn flex-1 ${
+              tipoConsumo === "local" 
+                ? "btn-info" 
+                : "btn-outline btn-info"
+            }`}
+          >
+            {tipoConsumo === "local" && "✓ "}
+              {texts.dinein}
           </button>
         </div>
-      </div>
 
-      {/* Barra de navegación dock inferior */}
-      <div className="dock">
-        {/* Inicio */}
-        <button
-          onClick={() => navigate("/")}
-          className={isActive("/") ? "dock-active" : ""}
-          title={texts[language].home}
-        >
-          <div className="text-2xl">🏠</div>
-          <div className="dock-label">{texts[language].home}</div>
-        </button>
-
-        {/* Menú */}
+        {/* Botón principal */}
         <button
           onClick={() => navigate("/menu")}
-          className={isActive("/menu") ? "dock-active" : ""}
-          title={texts[language].menu}
+          disabled={!tipoConsumo}
+          className={`btn btn-lg w-full text-xl md:text-2xl ${
+            tipoConsumo ? "btn-warning" : "btn-disabled"
+          }`}
         >
-          <div className="text-2xl">🍔</div>
-          <div className="dock-label">{texts[language].menu}</div>
+          {texts.start}
         </button>
 
-        {/* Carrito */}
+        {!tipoConsumo && (
+          <p className="text-sm text-warning mt-2">
+            {texts.pleaseSelect}
+          </p>
+        )}
+      </div>
+
+      {/* Barra de navegación dock inferior - SOLO INICIO HABILITADO */}
+      <div className="dock">
+        {/* Inicio - Siempre activo y no clickeable */}
         <button
-          onClick={() => navigate("/carrito")}
-          className={`relative ${isActive("/carrito") ? "dock-active" : ""}`}
-          title={texts[language].cart}
+          className="dock-active cursor-default"
+          title={texts.home}
+        >
+          <div className="text-2xl">🏠</div>
+          <div className="dock-label">{texts.home}</div>
+        </button>
+
+        {/* Menú - DESHABILITADO */}
+        <button
+          disabled
+          className="opacity-30 cursor-not-allowed"
+          title={texts.menu}
+        >
+          <div className="text-2xl">🍔</div>
+          <div className="dock-label">{texts.menu}</div>
+        </button>
+
+        {/* Carrito - DESHABILITADO */}
+        <button
+          disabled
+          className="opacity-30 cursor-not-allowed relative"
+          title={texts.cart}
         >
           <div className="text-2xl">🛒</div>
-          <div className="dock-label">{texts[language].cart}</div>
+          <div className="dock-label">{texts.cart}</div>
           {cartCount > 0 && (
             <div className="badge badge-secondary badge-sm absolute -top-1 -right-1">
               {cartCount}
@@ -133,15 +146,14 @@ const PantHome = () => {
           )}
         </button>
 
-        {/* Pago */}
+        {/* Pago - DESHABILITADO */}
         <button
-          onClick={() => navigate("/pago")}
-          className={`${isActive("/pago") ? "dock-active" : ""} ${cartCount === 0 ? "opacity-50" : ""}`}
-          disabled={cartCount === 0}
-          title={texts[language].payment}
+          disabled
+          className="opacity-30 cursor-not-allowed"
+          title={texts.payment}
         >
           <div className="text-2xl">💳</div>
-          <div className="dock-label">{texts[language].payment}</div>
+          <div className="dock-label">{texts.payment}</div>
         </button>
       </div>
 
@@ -159,12 +171,12 @@ const PantHome = () => {
         }
 
         .dock > * {
-          @apply rounded-xl relative flex h-12 max-w-20 shrink-1 basis-full cursor-pointer flex-col items-center justify-center gap-1 bg-transparent;
+          @apply rounded-xl relative flex h-12 max-w-20 shrink-1 basis-full flex-col items-center justify-center gap-1 bg-transparent;
           transition: all 0.3s ease-out;
           color: rgba(255, 255, 255, 0.8);
         }
 
-        .dock > *:hover {
+        .dock > button:not([disabled]):not(.dock-active):hover {
           @apply scale-110;
           color: rgba(255, 255, 255, 1);
           background: rgba(255, 255, 255, 0.1);
@@ -172,7 +184,6 @@ const PantHome = () => {
 
         .dock > *[disabled] {
           @apply pointer-events-none;
-          color: rgba(255, 255, 255, 0.3);
         }
 
         .dock-label {

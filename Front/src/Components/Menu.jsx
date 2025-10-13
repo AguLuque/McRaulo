@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from "./Idioma/Language"; // 👈 Importar
 
 const Menu = () => {
+  const { texts } = useLanguage(); // 👈 Usar el hook
   const [hamburguesas, setHamburguesas] = useState([]);
   const [papas, setPapas] = useState([]);
   const [bebidas, setBebidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [carrito, setCarrito] = useState([]);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,16 +22,11 @@ const Menu = () => {
 
   // Mapeo de nombres de productos a nombres de archivos
   const mapeoImagenes = {
-    // Hamburguesas
     'McRaulo Cheese': 'cheddar',
     'McRaulo Veggie': 'vegana',
     'McRaulo Pollo': 'pollo',
-    
-    // Papas
     'Papas fritas': 'fritas',
     'Papas con cheddar': 'fritascheddar',
-    
-    // Bebidas
     'Sprite': 'sprite',
     'Fanta': 'fanta',
     'Limonada': 'limonada',
@@ -36,12 +34,11 @@ const Menu = () => {
     'Coca-Cola': 'coca'
   };
 
-  // Función helper para obtener la imagen según el nombre del producto
   const obtenerImagen = (tipo, nombreProducto) => {
     let imagenes;
     let carpeta;
-    
-    switch(tipo) {
+
+    switch (tipo) {
       case 'hamburguesa':
         imagenes = imagenesHamburguesas;
         carpeta = 'hamburguesas';
@@ -58,15 +55,13 @@ const Menu = () => {
         return null;
     }
 
-    // Obtener el nombre del archivo desde el mapeo
     const nombreArchivo = mapeoImagenes[nombreProducto];
-    
+
     if (!nombreArchivo) {
       console.warn(`No se encontró imagen para: ${nombreProducto}`);
       return null;
     }
 
-    // Buscar la imagen con el nombre del archivo
     const rutaCompleta = `../assets/imagenes/${carpeta}/${nombreArchivo}.webp`;
     const imagenKey = Object.keys(imagenes).find(key => key === rutaCompleta);
 
@@ -101,7 +96,10 @@ const Menu = () => {
     }
   }, []);
 
-  const agregarAlCarrito = (producto, tipo) => {
+  const agregarAlCarrito = (producto, tipo, event) => {
+    // Prevenir el comportamiento por defecto
+    event.stopPropagation();
+
     const productoCarrito = {
       id: producto.id_producto,
       nombre: producto.nombre,
@@ -114,7 +112,7 @@ const Menu = () => {
 
     setCarrito(prevCarrito => {
       const productoExistente = prevCarrito.find(item => item.id === producto.id_producto);
-      
+
       let nuevoCarrito;
       if (productoExistente) {
         nuevoCarrito = prevCarrito.map(item =>
@@ -125,18 +123,19 @@ const Menu = () => {
       } else {
         nuevoCarrito = [...prevCarrito, productoCarrito];
       }
-      
+
       localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
       return nuevoCarrito;
     });
 
+    // Toast de confirmación
     const toast = document.createElement('div');
     toast.className = 'toast toast-top toast-center';
     toast.innerHTML = `
-      <div class="alert alert-success">
-        <span>✓ ${producto.nombre} agregado al carrito</span>
-      </div>
-    `;
+    <div class="alert alert-success">
+      <span>✓ ${producto.nombre} ${texts.addedToCart}</span>
+    </div>
+  `;
     document.body.appendChild(toast);
     setTimeout(() => {
       document.body.removeChild(toast);
@@ -158,12 +157,12 @@ const Menu = () => {
       <div className="carousel carousel-center rounded-box max-w-full space-x-4 p-4 w-full">
         {productos.map((producto) => {
           const imagenProducto = obtenerImagen(tipo, producto.nombre);
-          
+
           return (
             <div key={producto.id_producto} className="carousel-item">
-              <div 
+              <div
                 className="card bg-base-100 shadow-xl w-80 flex-shrink-0 cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-105"
-                onClick={() => agregarAlCarrito(producto, tipo)}
+                onClick={(e) => agregarAlCarrito(producto, tipo, e)}
               >
                 <figure className="h-48 w-full overflow-hidden bg-base-200">
                   {imagenProducto ? (
@@ -181,11 +180,11 @@ const Menu = () => {
                 <div className="card-body">
                   <h3 className="card-title text-center">{producto.nombre}</h3>
                   <p className="text-sm text-center">{producto.descripcion}</p>
-                  <p className="text-xl font-semibold mt-2 text-center">Precio: ${producto.precio_base}</p>
-                  
+                  <p className="text-xl font-semibold mt-2 text-center">{texts.price}: ${producto.precio_base}</p>
+
                   <div className="card-actions justify-center mt-4">
                     <div className="btn btn-primary btn-sm">
-                      + Agregar al carrito
+                      {texts.addToCart}
                     </div>
                   </div>
                 </div>
@@ -194,10 +193,10 @@ const Menu = () => {
           );
         })}
       </div>
-      
+
       <div className="text-center mt-4">
         <p className="text-sm text-base-content/60">
-          Desliza horizontalmente para ver más {titulo.toLowerCase()} →
+          {texts.slideMore} {titulo.toLowerCase()} →
         </p>
       </div>
     </section>
@@ -219,10 +218,10 @@ const Menu = () => {
     <div className="flex flex-col items-center justify-start min-h-screen p-4 space-y-8 pb-20">
       {/* Header con carrito */}
       <div className="flex justify-between items-center w-full max-w-6xl mb-8">
-        <h1 className="text-4xl text-center font-bold flex-1">🍔 Menú Completo</h1>
-        
+        <h1 className="text-4xl text-center font-bold flex-1">🍔 {texts.menuTitle}</h1>
+
         <div className="flex items-center">
-          <button 
+          <button
             onClick={irAlCarrito}
             className="btn btn-primary btn-circle relative"
           >
@@ -237,44 +236,46 @@ const Menu = () => {
       </div>
 
       {/* Carousel de Hamburguesas */}
-      <CarouselProductos 
+      <CarouselProductos
         productos={hamburguesas}
         tipo="hamburguesa"
-        titulo="Hamburguesas"
+        titulo={texts.hamburgers}
+        emoji="🍔"
       />
 
       {/* Carousel de Papas Fritas */}
-      <CarouselProductos 
+      <CarouselProductos
         productos={papas}
         tipo="papa"
-        titulo="Papas Fritas"
+        titulo={texts.fries}
+        emoji="🍟"
       />
 
       {/* Carousel de Bebidas */}
-      <CarouselProductos 
+      <CarouselProductos
         productos={bebidas}
         tipo="bebida"
-        titulo="Bebidas"
+        titulo={texts.drinks}
+        emoji="🥤"
       />
 
       {/* Instrucciones generales */}
       <div className="text-center mt-8 p-4 bg-base-200 rounded-lg max-w-2xl">
-        <p className="text-lg font-semibold mb-2">¿Cómo ordenar?</p>
+        <p className="text-lg font-semibold mb-2">{texts.howToOrder}</p>
         <p className="text-base-content/70">
-          Haz clic en cualquier producto para agregarlo al carrito. 
-          Puedes combinar hamburguesas, papas y bebidas para armar tu combo perfecto.
+          {texts.howToOrderText}
         </p>
       </div>
 
       {/* Botón flotante para ir al carrito */}
       {carrito.length > 0 && (
         <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50">
-          <button 
+          <button
             onClick={irAlCarrito}
             className="btn btn-primary btn-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
             <span className="flex items-center gap-3">
-              🛒 Ver Carrito 
+              🛒 {texts.viewCart}
               <div className="badge badge-secondary">
                 {carrito.reduce((total, item) => total + item.cantidad, 0)}
               </div>
@@ -291,28 +292,28 @@ const Menu = () => {
         <button
           onClick={() => navigate("/")}
           className={isActive("/") ? "dock-active" : ""}
-          title="Inicio"
+          title={texts.home}
         >
-          <div className="text-2xl"></div>
-          <div className="dock-label">Inicio</div>
+          <div className="text-2xl">🏠</div>
+          <div className="dock-label">{texts.home}</div>
         </button>
 
         <button
           onClick={() => navigate("/menu")}
           className={isActive("/menu") ? "dock-active" : ""}
-          title="Menú"
+          title={texts.menu}
         >
           <div className="text-2xl">🍔</div>
-          <div className="dock-label">Menú</div>
+          <div className="dock-label">{texts.menu}</div>
         </button>
 
         <button
           onClick={() => navigate("/carrito")}
           className={`relative ${isActive("/carrito") ? "dock-active" : ""}`}
-          title="Carrito"
+          title={texts.cart}
         >
           <div className="text-2xl">🛒</div>
-          <div className="dock-label">Carrito</div>
+          <div className="dock-label">{texts.cart}</div>
           {cartCount > 0 && (
             <div className="badge badge-secondary badge-sm absolute -top-1 -right-1">
               {cartCount}
@@ -324,10 +325,10 @@ const Menu = () => {
           onClick={() => navigate("/pago")}
           className={`${isActive("/pago") ? "dock-active" : ""} ${cartCount === 0 ? "opacity-50" : ""}`}
           disabled={cartCount === 0}
-          title="Pago"
+          title={texts.payment}
         >
           <div className="text-2xl">💳</div>
-          <div className="dock-label">Pago</div>
+          <div className="dock-label">{texts.payment}</div>
         </button>
       </div>
 
