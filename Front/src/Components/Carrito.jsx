@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useLanguage } from "./Idioma/Language"; // 👈 Importar
+import { useLanguage } from "./Idioma/Language"; 
 
 const Carrito = () => {
-  const { texts } = useLanguage(); // 👈 Usar el hook
+  const { texts } = useLanguage(); // Hook
   const [carrito, setCarrito] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -164,7 +164,6 @@ const Carrito = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl pt-6 pb-40">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold">🛒 {texts.cartTitle}</h1>
         <button 
@@ -175,20 +174,19 @@ const Carrito = () => {
         </button>
       </div>
 
-      {/* Items del carrito */}
       <div className="space-y-4 mb-6">
         {carrito.map((item) => (
           <div key={item.id} className="card bg-base-100 shadow-xl">
             <div className="card-body">
               <div className="flex flex-col md:flex-row items-center gap-4">
-                {/* Imagen */}
+
                 <div className="avatar">
                   <div className="w-24 h-24 rounded-xl">
                     <img src={item.imagen} alt={item.nombre} className="object-cover" />
                   </div>
                 </div>
 
-                {/* Información del producto */}
+                {/* Info del producto */}
                 <div className="flex-1 text-center md:text-left">
                   <h3 className="text-xl font-semibold">{item.nombre}</h3>
                   <p className="text-base-content/70">{item.descripcion}</p>
@@ -265,7 +263,7 @@ const Carrito = () => {
                   onClick={irAPago}
                   className="btn btn-primary btn-lg flex-1 sm:flex-none"
                 >
-                  {texts.proceedPayment} 💳
+                  {texts.proceedPayment} 
                 </button>
               </div>
             </div>
