@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
 import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "./Idioma/Language";
+import BarraMenu from "./BarraMenu";
 
 // ---------------------------
 // CarouselProductos (fuera de Menu, memoizado)
@@ -22,11 +23,11 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
       carouselRef.current.scrollLeft = lastScroll;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tipo, productos]); // restauramos al cambiar productos o tipo
+  }, [tipo, productos]);
 
   return (
     <section className="w-full max-w-6xl mb-12">
-      <h2 className="text-3xl font-bold text-center mb-6">
+      <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
         {emoji} {titulo}
       </h2>
 
@@ -40,8 +41,8 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
 
           return (
             <div key={producto.id_producto} className="carousel-item">
-              <div className="card bg-base-100 shadow-xl w-80 flex-shrink-0 hover:shadow-2xl transition-all duration-300">
-                <figure className="h-48 w-full overflow-hidden bg-base-200">
+              <div className="card bg-white border-2 border-gray-100 shadow-lg w-80 flex-shrink-0 hover:shadow-xl transition-all duration-300 rounded-2xl">
+                <figure className="h-48 w-full overflow-hidden bg-gray-50 rounded-t-2xl">
                   {imagenProducto ? (
                     <img
                       src={imagenProducto}
@@ -56,9 +57,9 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
                 </figure>
 
                 <div className="card-body">
-                  <h3 className="card-title text-center">{producto.nombre}</h3>
-                  <p className="text-sm text-center">{producto.descripcion}</p>
-                  <p className="text-xl font-semibold mt-2 text-center">
+                  <h3 className="card-title text-center text-gray-800">{producto.nombre}</h3>
+                  <p className="text-sm text-center text-gray-500">{producto.descripcion}</p>
+                  <p className="text-xl font-semibold mt-2 text-center text-gray-700">
                     {texts.price}: ${producto.precio_base}
                   </p>
 
@@ -69,7 +70,7 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
                         e.stopPropagation();
                         agregarAlCarrito(producto, tipo);
                       }}
-                      className="btn btn-primary btn-sm hover:scale-105 transition-transform"
+                      className="btn bg-green-500 hover:bg-green-600 text-white border-0 btn-sm hover:scale-105 transition-transform rounded-xl"
                     >
                       {texts.addToCart}
                     </button>
@@ -82,7 +83,7 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
       </div>
 
       <div className="text-center mt-4">
-        <p className="text-sm text-base-content/60">
+        <p className="text-sm text-gray-500">
           {texts.slideMore} {titulo.toLowerCase()} →
         </p>
       </div>
@@ -104,7 +105,6 @@ const Menu = () => {
   const [carrito, setCarrito] = useState([]);
 
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Cargar imágenes dinámicamente
   const imagenesHamburguesas = import.meta.glob("../assets/imagenes/hamburguesas/*.webp", { eager: true });
@@ -156,7 +156,6 @@ const Menu = () => {
     return imagenKey ? imagenes[imagenKey].default : null;
   }, [imagenesHamburguesas, imagenesBebidas, imagenesPapas, mapeoImagenes]);
 
-  // Fetch productos y carrito guardado
   useEffect(() => {
     const fetchProductos = async () => {
       try {
@@ -183,7 +182,6 @@ const Menu = () => {
     if (carritoGuardado) setCarrito(JSON.parse(carritoGuardado));
   }, []);
 
-  // agregarAlCarrito estable (useCallback)
   const agregarAlCarrito = useCallback(
     (producto, tipo) => {
       const productoCarrito = {
@@ -209,40 +207,35 @@ const Menu = () => {
       // toast simple
       const toast = document.createElement("div");
       toast.className = "toast toast-top toast-center";
-      toast.innerHTML = `<div class="alert alert-success"><span>✓ ${producto.nombre} ${texts.addedToCart}</span></div>`;
+      toast.innerHTML = `<div class="alert alert-success bg-green-500 text-white border-0"><span>✓ ${producto.nombre} ${texts.addedToCart}</span></div>`;
       document.body.appendChild(toast);
       setTimeout(() => document.body.removeChild(toast), 2000);
     },
     [obtenerImagen, texts.addedToCart]
   );
 
-  const irAlCarrito = () => navigate("/carrito");
-  const isActive = (path) => location.pathname === path;
   const cartCount = carrito.reduce((total, item) => total + item.cantidad, 0);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <span className="loading loading-spinner text-warning loading-lg"></span>
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <span className="loading loading-spinner text-amber-500 loading-lg"></span>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-center text-error mt-10">{error}</div>;
+    return <div className="text-center text-red-500 mt-10">{error}</div>;
   }
 
-  // ---------------------------
-  // Render principal (incluye dock exactamente como pediste)
-  // ---------------------------
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen p-4 space-y-8 pb-20">
+    <div className="flex flex-col items-center justify-start min-h-screen bg-gray-50 p-4 space-y-8 pb-20">
       {/* Header con carrito */}
       <div className="flex justify-between items-center w-full max-w-6xl mb-8">
-        <h1 className="text-4xl text-center font-bold flex-1">{texts.menuTitle}</h1>
+        <h1 className="text-4xl text-center font-bold flex-1 text-gray-800">{texts.menuTitle}</h1>
       </div>
 
-      {/* Carousels (sin recrearlos por cada render del Menu) */}
+      {/* Carousels */}
       <CarouselProductos
         productos={hamburguesas}
         tipo="hamburguesa"
@@ -271,101 +264,13 @@ const Menu = () => {
       />
 
       {/* Instrucciones */}
-      <div className="text-center mt-8 p-4 bg-base-200 rounded-lg max-w-2xl">
-        <p className="text-lg font-semibold mb-2">{texts.howToOrder}</p>
-        <p className="text-base-content/70">{texts.howToOrderText}</p>
+      <div className="text-center mt-8 p-6 bg-white rounded-2xl border-2 border-gray-100 shadow-lg max-w-2xl">
+        <p className="text-lg font-semibold mb-2 text-gray-800">{texts.howToOrder}</p>
+        <p className="text-gray-500">{texts.howToOrderText}</p>
       </div>
 
-      {/* Dock de navegación (tu barra inferior intacta) */}
-      <div className="dock">
-        <button onClick={() => navigate("/")} className={isActive("/") ? "dock-active" : ""} title={texts.home}>
-          <div className="text-2xl">🏠</div>
-          <div className="dock-label">{texts.home}</div>
-        </button>
-
-        <button
-          onClick={() => navigate("/menu")}
-          className={isActive("/menu") ? "dock-active" : ""}
-          title={texts.menu}
-        >
-          <div className="text-2xl">🍔</div>
-          <div className="dock-label">{texts.menu}</div>
-        </button>
-
-        <button
-          onClick={() => navigate("/carrito")}
-          className={`relative ${isActive("/carrito") ? "dock-active" : ""}`}
-          title={texts.cart}
-        >
-          <div className="text-2xl">🛒</div>
-          <div className="dock-label">{texts.cart}</div>
-          {cartCount > 0 && <div className="badge badge-secondary badge-sm absolute -top-1 -right-1">{cartCount}</div>}
-        </button>
-
-        <button
-          onClick={() => navigate("/pago")}
-          className={`${isActive("/pago") ? "dock-active" : ""} ${cartCount === 0 ? "opacity-50" : ""}`}
-          disabled={cartCount === 0}
-          title={texts.payment}
-        >
-          <div className="text-2xl">💳</div>
-          <div className="dock-label">{texts.payment}</div>
-        </button>
-      </div>
-
-      {/* Estilos del dock (igual que antes) */}
-      <style jsx>{`
-        .dock {
-         @apply fixed right-0 bottom-0 left-0 z-40 flex w-full flex-row items-center justify-around p-3 text-white;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-         height: 4.5rem; /* Altura fija */
-         padding-bottom: 0; /* Sin espacio adicional */
-         margin: 0; /* Asegura que esté pegado */
-         box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
-         backdrop-filter: blur(10px);
-        }
-
-
-        .dock > * {
-          @apply rounded-xl relative flex h-12 max-w-20 shrink-1 basis-full cursor-pointer flex-col items-center justify-center gap-1 bg-transparent;
-          transition: all 0.3s ease-out;
-          color: rgba(255, 255, 255, 0.8);
-        }
-
-        .dock > *:hover {
-          @apply scale-110;
-          color: rgba(255, 255, 255, 1);
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .dock > *[disabled] {
-          @apply pointer-events-none;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .dock-label {
-          font-size: 0.65rem;
-          font-weight: 500;
-        }
-
-        .dock > *:after {
-          content: "";
-          @apply absolute h-1 w-0 rounded-full;
-          bottom: -0.5rem;
-          background: #fff;
-          transition: width 0.3s ease-out;
-        }
-
-        .dock-active {
-          color: rgba(255, 255, 255, 1) !important;
-          background: rgba(255, 255, 255, 0.15) !important;
-        }
-
-        .dock-active:after {
-          @apply w-8;
-        }
-      `}</style>
+      {/* Barra de navegación */}
+      <BarraMenu cartCount={cartCount} />
     </div>
   );
 };

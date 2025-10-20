@@ -81,6 +81,8 @@ import tiposContribuyenteRoutes from "./routes/tipos_contribuyente.js";
 import tiposPagoRoutes from "./routes/tipos_pago.js";
 import authRoutes from './routes/auth.js';
 import verifyToken from './middlewares/authmiddleware.js';
+import sociosRoutes from "./routes/socios.js";
+
 
 // --- Iniciar la conexión a la base de datos y luego el servidor ---
 db.connect()
@@ -113,6 +115,8 @@ db.connect()
     app.use("/api/tipos_contribuyente", tiposContribuyenteRoutes(db, handleError));
     app.use("/api/tipos_pago", tiposPagoRoutes(db, handleError));
     app.use('/api/auth', authRoutes(db, handleError));
+    app.use("/api/socios", sociosRoutes(db, handleError));
+
 
     // Endpoint de status
     app.get("/api/status", async (req, res) => {
