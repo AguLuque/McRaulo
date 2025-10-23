@@ -12,9 +12,9 @@ const BarraMenu = ({ cartCount = 0 }) => {
   return (
     <>
       <div className="dock">
-        <button 
-          onClick={() => navigate("/")} 
-          className={isActive("/") ? "dock-active" : ""} 
+        <button
+          onClick={() => navigate("/")}
+          className={isActive("/") ? "dock-active" : ""}
           title={texts.home}
         >
           <Home size={24} strokeWidth={1.5} />
@@ -57,13 +57,22 @@ const BarraMenu = ({ cartCount = 0 }) => {
 
       <style jsx>{`
         .dock {
-          @apply fixed right-0 bottom-0 left-0 z-40 flex w-full flex-row items-center justify-around p-3;
+          @apply fixed left-0 right-0 z-40 flex w-full flex-row items-center justify-around p-3;
           background: #ffffff;
           border-top: 2px solid #e5e7eb;
+          bottom: 0 !important;
           height: 4.5rem;
-          height: calc(4.5rem + env(safe-area-inset-bottom));
-          padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
           box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+          margin: 0;
+        }
+
+        /* Para dispositivos con notch (iPhone, etc) */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+          .dock {
+            height: calc(4.5rem + env(safe-area-inset-bottom));
+            padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+            bottom: 0 !important;
+          }
         }
 
         .dock > * {

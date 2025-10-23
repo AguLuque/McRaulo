@@ -1,25 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useReactToPrint } from 'react-to-print';
 import { useLanguage } from "./Idioma/Language";
 import BarraMenu from "./BarraMenu";
-import Ticket from "./Ticket";
+import { formatearPrecio } from './Utils/FormatearPrecio';
+
 
 const Pago = () => {
   const { texts } = useLanguage();
   const [carrito, setCarrito] = useState([]);
   const [metodoPago, setMetodoPago] = useState("");
   const [procesando, setProcesando] = useState(false);
-  const [mostrarTicket, setMostrarTicket] = useState(false);
   const [numeroOrden, setNumeroOrden] = useState('');
   const [tipoConsumo, setTipoConsumo] = useState('');
+  const [mostrarModalErrorDNI, setMostrarModalErrorDNI] = useState(false);
+  const [mostrarModalError, setMostrarModalError] = useState(false);
+  const [mensajeError, setMensajeError] = useState('');
+  const [mostrarModalMetodoPago, setMostrarModalMetodoPago] = useState(false);
+  const [mostrarModalGracias, setMostrarModalGracias] = useState(false);
+
 
   // Sistema de socio
   const [esSocio, setEsSocio] = useState(false);
   const [dniSocio, setDniSocio] = useState('');
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
   const [cuponProximaCompra, setCuponProximaCompra] = useState(null);
-  
+
   // Estado para los modales
   const [mostrarModalRegistro, setMostrarModalRegistro] = useState(false);
   const [mostrarModalExito, setMostrarModalExito] = useState(false);
@@ -27,7 +32,8 @@ const Pago = () => {
   const [descuentoObtenido, setDescuentoObtenido] = useState(0);
 
   const navigate = useNavigate();
-  const ticketRef = useRef();
+  const imagenesLogo = import.meta.glob("../assets/imagenes/logo/*.webp", { eager: true });
+  const logoSrc = imagenesLogo["../assets/imagenes/logo/Logo.webp"]?.default;
 
   useEffect(() => {
     const carritoGuardado = localStorage.getItem('carrito');
@@ -60,13 +66,13 @@ const Pago = () => {
 
   const aplicarDescuentoSocio = async () => {
     if (!validarDNI(dniSocio)) {
-      alert("Por favor ingrese un DNI válido (7 u 8 dígitos)");
+      setMostrarModalErrorDNI(true);
       return;
     }
 
     try {
       const response = await fetch(`http://localhost:3000/api/socios/${dniSocio}`);
-      
+
       if (response.ok) {
         const subtotal = calcularSubtotal();
         const descuento = subtotal * 0.15;
@@ -74,17 +80,19 @@ const Pago = () => {
         setDescuentoObtenido(descuento);
         setEsSocio(true);
         setMostrarModalExito(true);
-      } 
+      }
       else if (response.status === 404) {
         // Mostrar modal en lugar de window.confirm
         setDniPendiente(dniSocio);
         setMostrarModalRegistro(true);
       } else {
-        alert("Error al verificar el socio. Inténtalo nuevamente.");
+        setMensajeError("Error al verificar el socio. Inténtalo nuevamente.");
+        setMostrarModalError(true);
       }
     } catch (error) {
       console.error("Error al verificar socio:", error);
-      alert("Error de conexión con el servidor.");
+      setMensajeError("Error de conexión con el servidor.");
+      setMostrarModalError(true);
     }
   };
 
@@ -106,11 +114,13 @@ const Pago = () => {
         setMostrarModalExito(true);
       } else {
         const dataError = await nuevoSocio.json();
-        alert(dataError.error || "Error al registrar socio.");
+        setMensajeError(dataError.error || "Error al registrar socio.");
+        setMostrarModalError(true);
       }
     } catch (error) {
       console.error("Error al registrar socio:", error);
-      alert("Error de conexión con el servidor.");
+      setMensajeError("Error de conexión con el servidor.");
+      setMostrarModalError(true);
     }
   };
 
@@ -133,18 +143,16 @@ const Pago = () => {
 
   const confirmarPedido = async () => {
     if (!metodoPago) {
-      alert("Por favor selecciona un método de pago");
+      setMostrarModalMetodoPago(true);
       return;
     }
 
     setProcesando(true);
 
-    const ordenNum = `ORD-${Date.now()}`;
-    setNumeroOrden(ordenNum);
-
     try {
       let idSocio = null;
 
+      // 🔹 Verificamos si el socio existe o lo creamos
       if (esSocio && validarDNI(dniSocio)) {
         const response = await fetch(`http://localhost:3000/api/socios/${dniSocio}`);
 
@@ -162,61 +170,77 @@ const Pago = () => {
         }
       }
 
-      await fetch("http://localhost:3000/api/pedidos", {
+      // 🔹 Formatear el carrito para el backend
+      const carritoFormateado = carrito.map(item => ({
+        id: item.id,
+        nombre: item.nombre,
+        precio: item.precio,
+        cantidad: item.cantidad,
+        notas: item.notas || null
+      }));
+
+      // 🔹 Mapeo de métodos de pago
+      const metodosPago = {
+        Efectivo: 5,
+        Tarjeta: 4,
+        mercadopago: 7
+      };
+
+      // ✅ Objeto del pedido SIN id_cliente
+      const pedidoData = {
+        id_estado_pedido: 1,
+        id_tipo_pago: metodosPago[metodoPago],
+        subtotal: calcularSubtotal(),
+        total: calcularTotal(),
+        descuento_total: descuentoAplicado || 0,
+        descuento_aplicado: descuentoAplicado || 0,
+        id_socio: idSocio,
+        tipo_servicio: tipoConsumo || 'local',
+        activo: true,
+        carrito: carritoFormateado,
+      };
+
+      console.log("📤 Enviando pedido:", pedidoData);
+
+      // 🔹 Enviamos el pedido al backend
+      const response = await fetch("http://localhost:3000/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          numeroOrden: ordenNum,
-          carrito,
-          metodoPago,
-          subtotal: calcularSubtotal(),
-          descuento: descuentoAplicado,
-          total: calcularTotal(),
-          tipoConsumo,
-          idSocio
-        })
+        body: JSON.stringify(pedidoData),
       });
 
-      setTimeout(() => {
-        console.log("Pedido Confirmado:", {
-          numeroOrden: ordenNum,
-          carrito,
-          metodoPago,
-          subtotal: calcularSubtotal(),
-          descuento: descuentoAplicado,
-          total: calcularTotal(),
-          tipoConsumo,
-          esSocio,
-          dniSocio: esSocio ? dniSocio : null,
-          cuponProximaCompra
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("❌ Error del servidor:", errorData);
+        throw new Error(errorData.message || "Error al registrar el pedido");
+      }
 
-        setMostrarTicket(true);
-        setProcesando(false);
-      }, 2000);
+      const data = await response.json();
+      console.log("✅ Pedido creado:", data);
+
+      // Guardamos el número de pedido devuelto
+      setNumeroOrden(data.data.id_pedido);
+      const numeroOrdenGenerado = data.data.id_pedido;
+      setNumeroOrden(numeroOrdenGenerado);
+      navigate('/ticket', {
+        state: {
+          carrito,
+          total: calcularTotal(),
+          metodoPago,
+          tipoConsumo,
+          numeroOrden: numeroOrdenGenerado,
+          cuponProximaCompra
+        }
+      });
+
     } catch (error) {
-      console.error("Error al confirmar pedido:", error);
-      alert("Ocurrió un error al guardar el pedido.");
+      console.error("❌ Error al confirmar pedido:", error);
+      setMensajeError("Ocurrió un error al guardar el pedido: " + error.message);
+      setMostrarModalError(true);
+    } finally {
       setProcesando(false);
     }
   };
-
-  const handleImprimirTicket = useReactToPrint({
-    content: () => ticketRef.current,
-    documentTitle: `Ticket-${numeroOrden}`,
-    onAfterPrint: () => {
-      localStorage.removeItem('carrito');
-
-      if (cuponProximaCompra) {
-        const cupones = JSON.parse(localStorage.getItem('cupones') || '[]');
-        cupones.push(cuponProximaCompra);
-        localStorage.setItem('cupones', JSON.stringify(cupones));
-      }
-
-      alert("¡Gracias por tu compra! ");
-      navigate('/');
-    }
-  });
 
   const finalizarpedido = () => {
     localStorage.removeItem('carrito');
@@ -232,61 +256,23 @@ const Pago = () => {
 
   const cartCount = carrito.reduce((total, item) => total + item.cantidad, 0);
 
-  if (mostrarTicket) {
-    return (
-      <div className="container mx-auto p-4 max-w-4xl pt-6 pb-20 bg-gray-50 min-h-screen">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold mb-4 text-gray-800">✅ ¡Pedido Confirmado!</h1>
-          <p className="text-xl text-gray-600">Orden #{numeroOrden}</p>
-        </div>
-
-        <div className="flex justify-center mb-6">
-          <div className="border-4 border-dashed border-gray-200 rounded-2xl p-4 bg-white">
-            <Ticket
-              ref={ticketRef}
-              carrito={carrito}
-              total={calcularTotal()}
-              metodoPago={metodoPago}
-              tipoConsumo={tipoConsumo}
-              numeroOrden={numeroOrden}
-            />
-          </div>
-        </div>
-
-        {cuponProximaCompra && (
-          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
-            <div>
-              <h3 className="font-bold text-green-700 text-lg">🎉 ¡Cupón de descuento generado!</h3>
-              <p className="text-green-600">Código: <strong>{cuponProximaCompra.codigo}</strong></p>
-              <p className="text-green-600">{cuponProximaCompra.descuento}% OFF en tu próxima compra</p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
-          <button
-            onClick={finalizarpedido}
-            className="btn bg-amber-500 hover:bg-amber-600 text-white border-0 btn-lg rounded-xl"
-          >
-            Volver a Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-4 max-w-4xl pt-6 pb-40 bg-gray-50 min-h-screen">
-      
+
       {/* Modal de Éxito - Descuento Aplicado */}
       {mostrarModalExito && (
         <div className="modal modal-open">
           <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
             <div className="text-center mb-6">
-              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="flex justify-center mb-4">
+                {logoSrc && (
+                  <img
+                    src={logoSrc}
+                    alt="Logo McRaulo"
+                    className="h-35 w-auto object-contain"
+                  />
+                )}
               </div>
               <h3 className="font-bold text-3xl text-gray-800 mb-2">
                 ¡Bienvenido!
@@ -300,7 +286,7 @@ const Pago = () => {
               <div className="text-center">
                 <p className="text-gray-700 text-lg mb-2">Descuento aplicado:</p>
                 <p className="text-4xl font-bold text-green-600 mb-3">
-                  ${descuentoObtenido.toFixed(2)}
+                  ${formatearPrecio(descuentoObtenido)}
                 </p>
                 <div className="badge badge-success badge-lg text-white px-4 py-3">
                   15% OFF
@@ -308,14 +294,9 @@ const Pago = () => {
               </div>
             </div>
 
-            <div className="bg-amber-50 rounded-xl p-4 mb-6 border-2 border-amber-200">
-              <p className="text-center text-amber-800 font-medium">
-                🎉 <strong>¡Bonus!</strong> Obtendrás un cupón del 20% OFF para tu próxima compra
-              </p>
-            </div>
 
             <div className="modal-action justify-center">
-              <button 
+              <button
                 onClick={cerrarModalExito}
                 className="btn bg-green-500 hover:bg-green-600 text-white border-0 rounded-xl px-8"
               >
@@ -326,17 +307,87 @@ const Pago = () => {
           <div className="modal-backdrop bg-black opacity-50" onClick={cerrarModalExito}></div>
         </div>
       )}
-      
-      {/* Modal de Registro de Socio - DaisyUI */}
+
+      {/* Modal de Error - DNI Inválido */}
+      {mostrarModalErrorDNI && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
+                {logoSrc && (
+                  <img
+                    src={logoSrc}
+                    alt="Logo McRaulo"
+                    className="h-30 w-auto object-contain"
+                  />
+                )}
+              </div>
+              <h3 className="font-bold text-2xl text-gray-800 mb-2">
+                DNI no válido
+              </h3>
+              <p className="text-gray-600 text-lg">
+                Por favor ingrese un DNI válido de 7 u 8 dígitos
+              </p>
+            </div>
+
+            <div className="modal-action justify-center">
+              <button
+                onClick={() => setMostrarModalErrorDNI(false)}
+                className="btn bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl px-8"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black opacity-50" onClick={() => setMostrarModalErrorDNI(false)}></div>
+        </div>
+      )}
+
+      {/* Modal de Error General */}
+      {mostrarModalError && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-2xl text-gray-800 mb-2">
+                Error
+              </h3>
+              <p className="text-gray-600 text-lg">
+                {mensajeError}
+              </p>
+            </div>
+
+            <div className="modal-action justify-center">
+              <button
+                onClick={() => setMostrarModalError(false)}
+                className="btn bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl px-8"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black opacity-50" onClick={() => setMostrarModalError(false)}></div>
+        </div>
+      )}
+      {/* Modal de Registro de Socio - CON LOGO */}
       {mostrarModalRegistro && (
         <div className="modal modal-open">
           <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
             <div className="text-center mb-6">
-              <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+              <div className="flex justify-center mb-4">
+                {logoSrc && (
+                  <img
+                    src={logoSrc}
+                    alt="Logo McRaulo"
+                    className="h-30 w-auto object-contain"
+                  />
+                )}
               </div>
+
               <h3 className="font-bold text-2xl text-gray-800 mb-2">
                 ¡Únete a McRaulo!
               </h3>
@@ -359,11 +410,11 @@ const Pago = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 font-bold mt-1">✓</span>
-                  <span><strong>20% OFF</strong> en tu próxima compra</span>
+                  <span><strong>PROMOS</strong> imperdibles</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 font-bold mt-1">✓</span>
-                  <span>Descuentos exclusivos permanentes</span>
+                  <span><strong>Descuento</strong> cumplañero</span>
                 </li>
               </ul>
             </div>
@@ -373,13 +424,13 @@ const Pago = () => {
             </p>
 
             <div className="modal-action flex gap-3 mt-6">
-              <button 
+              <button
                 onClick={cancelarRegistroSocio}
                 className="btn bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300 flex-1 rounded-xl"
               >
                 Seguir sin ser socio
               </button>
-              <button 
+              <button
                 onClick={confirmarRegistroSocio}
                 className="btn bg-amber-500 hover:bg-amber-600 text-white border-0 flex-1 rounded-xl"
               >
@@ -390,12 +441,85 @@ const Pago = () => {
           <div className="modal-backdrop bg-black opacity-50" onClick={cancelarRegistroSocio}></div>
         </div>
       )}
+      {/* Modal - Método de Pago No Seleccionado */}
+      {mostrarModalMetodoPago && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
+                {logoSrc && (
+                  <img
+                    src={logoSrc}
+                    alt="Logo McRaulo"
+                    className="h-30 w-auto object-contain"
+                  />
+                )}
+              </div>
 
-      {/* Sistema de Socio */}
+
+              <h3 className="font-bold text-2xl text-gray-800 mb-2">
+                Selecciona un método de pago
+              </h3>
+              <p className="text-gray-600 text-lg">
+                Por favor elige cómo deseas pagar antes de continuar
+              </p>
+            </div>
+
+            <div className="modal-action justify-center">
+              <button
+                onClick={() => setMostrarModalMetodoPago(false)}
+                className="btn bg-amber-500 hover:bg-amber-600 text-white border-0 rounded-xl px-8"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black opacity-50" onClick={() => setMostrarModalMetodoPago(false)}></div>
+        </div>
+      )}
+
+      {/* Modal - Gracias por tu compra */}
+      {mostrarModalGracias && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md bg-white rounded-2xl shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-3xl text-gray-800 mb-2">
+                ¡Gracias por tu compra!
+              </h3>
+              <p className="text-gray-600 text-lg">
+                Tu pedido ha sido procesado exitosamente
+              </p>
+            </div>
+
+            <div className="modal-action justify-center">
+              <button
+                onClick={() => {
+                  setMostrarModalGracias(false);
+                  navigate('/');
+                }}
+                className="btn bg-green-500 hover:bg-green-600 text-white border-0 rounded-xl px-8"
+              >
+                Volver al inicio
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black opacity-50" onClick={() => {
+            setMostrarModalGracias(false);
+            navigate('/');
+          }}></div>
+        </div>
+      )}
+
+      {/* Socio */}
       <div className="card bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-xl mb-6 border border-slate-600 rounded-2xl">
         <div className="card-body">
           <h2 className="text-2xl font-bold mb-2">¿Eres socio McRaulo?</h2>
-          <p className="text-sm mb-4 text-slate-200">¡Obtén un 15% de descuento + cupón 20% OFF para tu próxima compra!</p>
+          <p className="text-sm mb-4 text-slate-200">¡Obtén un 15% de descuento!</p>
 
           {!esSocio ? (
             <div className="flex gap-2">
@@ -419,8 +543,7 @@ const Pago = () => {
               <div>
                 <p className="font-bold text-emerald-400">✓ Descuento aplicado</p>
                 <p className="text-sm text-slate-300">DNI: {dniSocio}</p>
-                <p className="text-sm text-slate-300">Ahorro: ${descuentoAplicado.toFixed(2)}</p>
-              </div>
+                <p className="text-sm text-slate-300">Ahorro: ${formatearPrecio(descuentoAplicado)}</p>              </div>
               <button
                 onClick={quitarDescuento}
                 className="btn btn-sm bg-slate-600 hover:bg-slate-500 text-white border-0 rounded-xl"
@@ -437,37 +560,43 @@ const Pago = () => {
         <div className="card-body">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{texts.paymentTitle}</h2>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             <button
               onClick={() => setMetodoPago("Efectivo")}
-              className={`btn flex-1 border-2 rounded-xl transition-all h-16 text-lg ${metodoPago === "Efectivo"
-                  ? "bg-green-500 hover:bg-green-600 text-white border-green-500"
-                  : "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+              className={`btn flex-1 border-2 rounded-xl transition-all duration-200 h-16 text-lg shadow-none ${metodoPago === "Efectivo"
+                ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100"
+                : "bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-gray-50"
                 }`}
             >
-              {metodoPago === "Efectivo" && "✓ "}
+              {metodoPago === "Efectivo" && (
+                <span className="mr-2 text-green-600 font-bold">✓</span>
+              )}
               {texts.cash}
             </button>
 
             <button
               onClick={() => setMetodoPago("Tarjeta")}
-              className={`btn flex-1 border-2 rounded-xl transition-all h-16 text-lg ${metodoPago === "Tarjeta"
-                  ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
-                  : "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+              className={`btn flex-1 border-2 rounded-xl transition-all duration-200 h-16 text-lg shadow-none ${metodoPago === "Tarjeta"
+                ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100"
+                : "bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-gray-50"
                 }`}
             >
-              {metodoPago === "Tarjeta" && "✓ "}
+              {metodoPago === "Tarjeta" && (
+                <span className="mr-2 text-green-600 font-bold">✓</span>
+              )}
               {texts.card}
             </button>
 
             <button
               onClick={() => setMetodoPago("mercadopago")}
-              className={`btn flex-1 border-2 rounded-xl transition-all h-16 text-lg ${metodoPago === "mercadopago"
-                  ? "bg-blue-400 hover:bg-blue-500 text-white border-blue-400"
-                  : "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+              className={`btn flex-1 border-2 rounded-xl transition-all duration-200 h-16 text-lg shadow-none ${metodoPago === "mercadopago"
+                ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100"
+                : "bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-gray-50"
                 }`}
             >
-              {metodoPago === "mercadopago" && "✓ "}
+              {metodoPago === "mercadopago" && (
+                <span className="mr-2 text-green-600 font-bold">✓</span>
+              )}
               Mercado Pago
             </button>
           </div>
@@ -480,8 +609,8 @@ const Pago = () => {
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{texts.orderSummary}</h2>
 
           <div className="space-y-4">
-            {carrito.map((item) => (
-              <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-100">
+            {carrito.map((item, index) => (
+              <div key={`${item.id}-${index}`} className="flex justify-between items-center py-3 border-b border-gray-100">
                 <div className="flex items-center gap-4 flex-1">
                   <img
                     src={item.imagen}
@@ -491,11 +620,13 @@ const Pago = () => {
                   <div className="flex-1">
                     <p className="font-semibold text-gray-800 text-lg">{item.nombre}</p>
                     <p className="text-sm text-gray-500">
-                      {texts.quantity}: {item.cantidad} × ${item.precio}
+                      {texts.quantity}: {item.cantidad} × ${formatearPrecio(item.precio)}
                     </p>
                   </div>
                 </div>
-                <p className="font-bold text-gray-800 text-xl ml-4">${(item.precio * item.cantidad).toFixed(2)}</p>
+                <p className="font-bold text-gray-800 text-xl ml-4">
+                  ${formatearPrecio(item.precio * item.cantidad)}
+                </p>
               </div>
             ))}
           </div>
@@ -505,19 +636,19 @@ const Pago = () => {
           <div className="space-y-2">
             <div className="flex justify-between items-center text-lg text-gray-700">
               <span>Subtotal:</span>
-              <span>${calcularSubtotal().toFixed(2)}</span>
+              <span>${formatearPrecio(calcularSubtotal())}</span>
             </div>
 
             {descuentoAplicado > 0 && (
               <div className="flex justify-between items-center text-lg text-green-600">
                 <span>Descuento Socio (15%):</span>
-                <span>-${descuentoAplicado.toFixed(2)}</span>
+                <span>-${formatearPrecio(descuentoAplicado)}</span>
               </div>
             )}
 
             <div className="flex justify-between items-center text-2xl font-bold text-gray-800 bg-amber-50 p-3 rounded-xl">
               <span>{texts.total}:</span>
-              <span className="text-amber-600">${calcularTotal().toFixed(2)}</span>
+              <span className="text-amber-600">${formatearPrecio(calcularTotal())}</span>
             </div>
           </div>
         </div>
@@ -528,11 +659,7 @@ const Pago = () => {
         <div className="card-body">
           <button
             onClick={confirmarPedido}
-            disabled={!metodoPago || procesando}
-            className={`btn btn-lg w-full rounded-xl ${metodoPago && !procesando
-                ? "bg-amber-500 hover:bg-amber-600 text-white border-0"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed border-0"
-              }`}
+            className="btn btn-lg w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-0"
           >
             {procesando ? (
               <>
@@ -540,7 +667,7 @@ const Pago = () => {
                 {texts.processing}
               </>
             ) : (
-              `${texts.confirmOrder} - $${calcularTotal().toFixed(2)}`
+              `${texts.confirmOrder} - $${formatearPrecio(calcularTotal())}`
             )}
           </button>
 
@@ -558,4 +685,4 @@ const Pago = () => {
   );
 };
 
-export default Pago; 
+export default Pago;

@@ -80,27 +80,33 @@ const PantHome = () => {
           {texts.selectOption}
         </p>
 
-        <div className="flex flex-col md:flex-row gap-3 w-full justify-center mb-6">
+        {/* Botones actualizados con el mismo estilo que método de pago */}
+        <div className="flex flex-col gap-5 w-full mb-6">
           <button 
             onClick={() => seleccionarTipoConsumo("llevar")}
-            className={`btn flex-1 border-2 rounded-xl transition-all ${
-              tipoConsumo === "llevar" 
-                ? "bg-green-500 hover:bg-green-600 text-white border-green-500" 
-                : "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+            className={`btn flex-1 border-2 rounded-xl transition-all duration-200 h-16 text-lg shadow-none ${
+              tipoConsumo === "llevar"
+                ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100"
+                : "bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-gray-50"
             }`}
           >
-            {tipoConsumo === "llevar" && "✓ "}
+            {tipoConsumo === "llevar" && (
+              <span className="mr-2 text-green-600 font-bold">✓</span>
+            )}
             {texts.takeaway}
           </button>
+
           <button 
             onClick={() => seleccionarTipoConsumo("local")}
-            className={`btn flex-1 border-2 rounded-xl transition-all ${
-              tipoConsumo === "local" 
-                ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500" 
-                : "bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
+            className={`btn flex-1 border-2 rounded-xl transition-all duration-200 h-16 text-lg shadow-none ${
+              tipoConsumo === "local"
+                ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100"
+                : "bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-gray-50"
             }`}
           >
-            {tipoConsumo === "local" && "✓ "}
+            {tipoConsumo === "local" && (
+              <span className="mr-2 text-green-600 font-bold">✓</span>
+            )}
             {texts.dinein}
           </button>
         </div>

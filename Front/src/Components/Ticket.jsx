@@ -1,8 +1,12 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect } from 'react';
+import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from './Idioma/Language';
+import { formatearPrecio } from './Utils/FormatearPrecio';
+export { TicketComponent };
 
-
-const Ticket = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrden }, ref) => {
+// Componente interno del ticket (para imprimir)
+const TicketComponent = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrden }, ref) => {
     const { texts } = useLanguage();
 
     const fecha = new Date().toLocaleString('es-AR', {
@@ -41,12 +45,22 @@ const Ticket = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrde
                     </thead>
                     <tbody>
                         {carrito.map((item, index) => (
-                            <tr key={index} className="border-b border-gray-100">
-                                <td className="py-3 text-gray-700">{item.nombre}</td>
-                                <td className="text-center text-gray-600">{item.cantidad}</td>
-                                <td className="text-right text-gray-600">${item.precio}</td>
-                                <td className="text-right font-semibold text-gray-800">${(item.precio * item.cantidad).toFixed(2)}</td>
-                            </tr>
+                            <React.Fragment key={`item-${index}`}>
+                                <tr className="border-b border-gray-100">
+                                    <td className="py-3 text-gray-700">{item.nombre}</td>
+                                    <td className="text-center text-gray-600">{item.cantidad}</td>
+                                    <td className="text-right text-gray-600">${formatearPrecio(item.precio)}</td>
+                                    <td className="text-right font-semibold text-gray-800">${formatearPrecio(item.precio * item.cantidad)}</td>
+                                </tr>
+                                {/* Mostrar notas si existen */}
+                                {item.notas && (
+                                    <tr>
+                                        <td colSpan="4" className="py-1 px-2 text-xs text-gray-600 italic bg-amber-50 border-l-2 border-amber-300">
+                                            {item.notas}
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         ))}
                     </tbody>
                 </table>
@@ -56,11 +70,11 @@ const Ticket = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrde
             <div className="mb-6 text-sm bg-amber-50 p-3 rounded-lg">
                 <div className="flex justify-between py-1 text-gray-700">
                     <span>Subtotal:</span>
-                    <span className="font-semibold">${total.toFixed(2)}</span>
+                    <span className="font-semibold">${formatearPrecio(total)}</span>
                 </div>
                 <div className="flex justify-between py-2 text-xl font-bold text-amber-600 border-t-2 border-amber-200 mt-2 pt-2">
                     <span>TOTAL:</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${formatearPrecio(total)}</span>
                 </div>
             </div>
 
@@ -78,7 +92,7 @@ const Ticket = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrde
                                     : metodoPago}
                     </span>
                 </p>
-            </div> 
+            </div>
 
             {/* Footer */}
             <div className="text-center text-xs mt-6 text-gray-500">
@@ -90,6 +104,86 @@ const Ticket = forwardRef(({ carrito, total, metodoPago, tipoConsumo, numeroOrde
     );
 });
 
-Ticket.displayName = 'Ticket';
+TicketComponent.displayName = 'TicketComponent';
+
+// Página principal del Ticket
+const Ticket = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Recibir los datos desde el state de la navegación
+    const {
+        carrito,
+        total,
+        metodoPago,
+        tipoConsumo,
+        numeroOrden,
+        cuponProximaCompra
+    } = location.state || {};
+
+    // 🔹 LIMPIAMOS EL CARRITO AUTOMÁTICAMENTE AL LLEGAR AL TICKET
+    useEffect(() => {
+        // Limpiamos el carrito del localStorage
+        localStorage.removeItem('carrito');
+        
+        // Guardamos cupones si existen
+        if (cuponProximaCompra) {
+            const cupones = JSON.parse(localStorage.getItem('cupones') || '[]');
+            cupones.push(cuponProximaCompra);
+            localStorage.setItem('cupones', JSON.stringify(cupones));
+        }
+    }, []); // Se ejecuta solo una vez al montar el componente
+
+    // Si no hay datos, redirigir al home
+    if (!carrito || !numeroOrden) {
+        navigate('/');
+        return null;
+    }
+
+    const finalizarPedido = () => {
+        // Ya limpiamos el carrito en el useEffect, solo navegamos
+        navigate('/', { replace: true });
+    };
+
+    return (
+        <div className="container mx-auto p-4 max-w-4xl pt-6 pb-20 bg-gray-50 min-h-screen">
+            <div className="text-center mb-6">
+                <h1 className="text-4xl font-bold mb-4 text-gray-800">¡Pedido Confirmado!</h1>
+                <p className="text-xl text-gray-600">Orden #{numeroOrden}</p>
+            </div>
+
+            <div className="flex justify-center mb-6">
+                <div className="border-4 border-dashed border-gray-200 rounded-2xl p-4 bg-white">
+                    <TicketComponent
+                        carrito={carrito}
+                        total={total}
+                        metodoPago={metodoPago}
+                        tipoConsumo={tipoConsumo}
+                        numeroOrden={numeroOrden}
+                    />
+                </div>
+            </div>
+
+            {cuponProximaCompra && (
+                <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
+                    <div>
+                        <h3 className="font-bold text-green-700 text-lg">¡Cupón de descuento generado!</h3>
+                        <p className="text-green-600">Código: <strong>{cuponProximaCompra.codigo}</strong></p>
+                        <p className="text-green-600">{cuponProximaCompra.descuento}% OFF en tu próxima compra</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+                <button
+                    onClick={finalizarPedido}
+                    className="btn bg-amber-500 hover:bg-amber-600 text-white border-0 btn-lg rounded-xl"
+                >
+                    Volver a Home
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export default Ticket;

@@ -3,10 +3,10 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "./Idioma/Language";
 import BarraMenu from "./BarraMenu";
+import { formatearPrecio } from './Utils/FormatearPrecio';
+import { ShoppingCart } from "lucide-react";
 
-// ---------------------------
 // CarouselProductos (fuera de Menu, memoizado)
-// ---------------------------
 const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregarAlCarrito, obtenerImagen }) => {
   const carouselRef = useRef(null);
   const scrollPositions = useRef({});
@@ -27,7 +27,7 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
 
   return (
     <section className="w-full max-w-6xl mb-12">
-      <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
+      <h2 className="text-2xl font-semibold text-center mb-4 text-gray-800 tracking-wide" style={{ fontFamily: "'Playfair Display', 'Georgia', serif" }}>
         {emoji} {titulo}
       </h2>
 
@@ -42,12 +42,13 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
           return (
             <div key={producto.id_producto} className="carousel-item">
               <div className="card bg-white border-2 border-gray-100 shadow-lg w-80 flex-shrink-0 hover:shadow-xl transition-all duration-300 rounded-2xl">
-                <figure className="h-48 w-full overflow-hidden bg-gray-50 rounded-t-2xl">
+                <figure className="h-56 w-full overflow-hidden bg-gray-50 rounded-t-2xl">
                   {imagenProducto ? (
                     <img
                       src={imagenProducto}
                       alt={producto.nombre}
                       className="w-full h-full object-cover"
+                      style={{ objectPosition: 'center' }}
                     />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full">
@@ -60,20 +61,64 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
                   <h3 className="card-title text-center text-gray-800">{producto.nombre}</h3>
                   <p className="text-sm text-center text-gray-500">{producto.descripcion}</p>
                   <p className="text-xl font-semibold mt-2 text-center text-gray-700">
-                    {texts.price}: ${producto.precio_base}
+                    {texts.price}: ${formatearPrecio(producto.precio_base)}
                   </p>
 
                   <div className="card-actions justify-center mt-4">
+                    {/* BOTÓN MEJORADO - Opción 1: Con ícono y efecto hover */}
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         agregarAlCarrito(producto, tipo);
                       }}
-                      className="btn bg-green-500 hover:bg-green-600 text-white border-0 btn-sm hover:scale-105 transition-transform rounded-xl"
+                      className="btn bg-amber-500 hover:bg-amber-600 text-white border-0 w-full rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 group"
                     >
+                      <ShoppingCart size={18} className="group-hover:rotate-12 transition-transform duration-200" />
                       {texts.addToCart}
                     </button>
+
+                    {/* OPCIÓN 2: Estilo minimalista elegante (comenta la opción 1 y descomenta esta)
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        agregarAlCarrito(producto, tipo);
+                      }}
+                      className="btn bg-white hover:bg-amber-50 text-amber-600 border-2 border-amber-500 w-full rounded-xl hover:shadow-md transition-all duration-200 hover:scale-105 font-semibold group"
+                    >
+                      <ShoppingCart size={18} className="group-hover:rotate-12 transition-transform duration-200" />
+                      {texts.addToCart}
+                    </button>
+                    */}
+
+                    {/* OPCIÓN 3: Estilo gradiente moderno (comenta la opción 1 y descomenta esta)
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        agregarAlCarrito(producto, tipo);
+                      }}
+                      className="btn bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 w-full rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 group"
+                    >
+                      <ShoppingCart size={18} className="group-hover:rotate-12 transition-transform duration-200" />
+                      {texts.addToCart}
+                    </button>
+                    */}
+
+                    {/* OPCIÓN 4: Estilo verde como los otros botones (comenta la opción 1 y descomenta esta)
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        agregarAlCarrito(producto, tipo);
+                      }}
+                      className="btn bg-green-500 hover:bg-green-600 text-white border-0 w-full rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 group"
+                    >
+                      <ShoppingCart size={18} className="group-hover:rotate-12 transition-transform duration-200" />
+                      {texts.addToCart}
+                    </button>
+                    */}
                   </div>
                 </div>
               </div>
@@ -92,9 +137,7 @@ const CarouselProductos = memo(({ productos, tipo, titulo, emoji, texts, agregar
 });
 CarouselProductos.displayName = "CarouselProductos";
 
-// ---------------------------
 // Componente Menu
-// ---------------------------
 const Menu = () => {
   const { texts } = useLanguage();
   const [hamburguesas, setHamburguesas] = useState([]);
@@ -110,6 +153,8 @@ const Menu = () => {
   const imagenesHamburguesas = import.meta.glob("../assets/imagenes/hamburguesas/*.webp", { eager: true });
   const imagenesBebidas = import.meta.glob("../assets/imagenes/bebidas/*.webp", { eager: true });
   const imagenesPapas = import.meta.glob("../assets/imagenes/papas/*.webp", { eager: true });
+  const imagenesLogo = import.meta.glob("../assets/imagenes/logo/*.webp", { eager: true });
+  const logoSrc = imagenesLogo["../assets/imagenes/logo/Logo.webp"]?.default;
 
   const mapeoImagenes = {
     "McRaulo Cheese": "cheddar",
@@ -192,19 +237,30 @@ const Menu = () => {
         imagen: obtenerImagen(tipo, producto.nombre),
         cantidad: 1,
         tipo,
+        notas: "",
       };
 
       setCarrito((prev) => {
-        const existe = prev.find((p) => p.id === producto.id_producto);
-        const nuevo = existe
-          ? prev.map((p) => (p.id === producto.id_producto ? { ...p, cantidad: p.cantidad + 1 } : p))
-          : [...prev, productoCarrito];
+        let nuevo;
+
+        if (tipo === 'hamburguesa') {
+          nuevo = [...prev, productoCarrito];
+        }
+        else {
+          const existe = prev.find((p) => p.id === producto.id_producto && p.tipo === tipo);
+          nuevo = existe
+            ? prev.map((p) =>
+              (p.id === producto.id_producto && p.tipo === tipo)
+                ? { ...p, cantidad: p.cantidad + 1 }
+                : p
+            )
+            : [...prev, productoCarrito];
+        }
 
         localStorage.setItem("carrito", JSON.stringify(nuevo));
         return nuevo;
       });
 
-      // toast simple
       const toast = document.createElement("div");
       toast.className = "toast toast-top toast-center";
       toast.innerHTML = `<div class="alert alert-success bg-green-500 text-white border-0"><span>✓ ${producto.nombre} ${texts.addedToCart}</span></div>`;
@@ -229,10 +285,21 @@ const Menu = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen bg-gray-50 p-4 space-y-8 pb-20">
-      {/* Header con carrito */}
-      <div className="flex justify-between items-center w-full max-w-6xl mb-8">
-        <h1 className="text-4xl text-center font-bold flex-1 text-gray-800">{texts.menuTitle}</h1>
+    <div className="flex flex-col items-center justify-start min-h-screen bg-gray-50 p-4 space-y-8 pb-28">
+      {/* Header*/}
+      <div className="flex justify-between items-center w-full max-w-6xl mb-4">
+        <div className="flex items-center gap-3">
+          {logoSrc && (
+            <img
+              src={logoSrc}
+              alt="Logo McRaulo"
+              className="h-25 w-auto object-contain"
+            />
+          )}
+          <h1 className="text-4xl font-bold text-gray-800" style={{ fontFamily: "'Playfair Display', 'Georgia', serif" }}>
+            {texts.menu}
+          </h1>
+        </div>
       </div>
 
       {/* Carousels */}

@@ -3,7 +3,6 @@ import { Router } from 'express';
 const socios = (db, handleError) => {
   const router = Router();
 
-  // ✅ GET /api/socios → obtener todos los socios
   router.get('/', async (req, res) => {
     try {
       const result = await db.any('SELECT * FROM socios ORDER BY fecha_registro DESC');
@@ -13,7 +12,6 @@ const socios = (db, handleError) => {
     }
   });
 
-  // ✅ GET /api/socios/:dni → verificar si existe el socio
   router.get('/:dni', async (req, res) => {
     const { dni } = req.params;
     try {
@@ -27,7 +25,6 @@ const socios = (db, handleError) => {
     }
   });
 
-  // ✅ POST /api/socios → registrar nuevo socio
   router.post('/', async (req, res) => {
     const { dni, nombre = 'Nuevo socio' } = req.body;
 
